@@ -38,6 +38,8 @@ public class JobConfiguration {
 	
 	 @Autowired
 	    private JdbcTemplate jdbcTemplate;
+	 
+	 private Map<Long, String> status;
 		
 	
 	@Bean
@@ -93,23 +95,29 @@ public class JobConfiguration {
 	}
 	
 	@Bean
-	public Step step1() {
-		return stepBuilderFactory.get("step1")
+	public Step step1(Map<Long, String> status) {		 
+		Step step =  stepBuilderFactory.get("step1")
 				.<Customer, Customer>chunk(5)
 				//.reader(cursorItemReader())
-				.reader(new Reader(dataSource))
+				//.reader(new Reader(dataSource))
+				.reader(new ListReader(new CustomerServiceImpl().getCustomers(), status))
 				//.reader(pagingItemReader())
-				.writer(customerItemWriter())
+				//.writer(customerItemWriter())
+				.writer(new ListWriter(status))
 				.taskExecutor(taskExecutor())
 				.build();
+		
+		return step;
 				
 		
 	}
 	
 	@Bean
 	public Job job() {
+		status = new HashMap<Long, String>();
 		return jobBuilderFactory.get("job")
-				.start(step1())
+				.start(step1(status))
+				.listener(new JobCompletionListener(status))
 				.build();
 	}
 		
